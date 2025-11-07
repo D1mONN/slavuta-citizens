@@ -10,16 +10,19 @@
 
 # Налаштування для Functions
 [functions]
-  # Регіон розгортання (найближчий до України)
   node_bundler = "esbuild"
 
-# Налаштування заголовків для безпеки
+# Налаштування заголовків для безпеки та iframe
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
+    # Дозволяємо вбудовування в iframe ТІЛЬКИ на сайті міської ради
+    Content-Security-Policy = "frame-ancestors 'self' https://sl.gov.ua http://sl.gov.ua https://*.sl.gov.ua http://*.sl.gov.ua"
+    
+    # Інші заголовки безпеки
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    X-XSS-Protection = "1; mode=block"
 
 # Редирект кореня на index.html
 [[redirects]]
