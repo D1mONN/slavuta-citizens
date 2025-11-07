@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Почесні громадяни міста Славута</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #ffffff;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 3px solid #0056b3;
+        }
+        
+        h1 {
+            font-size: 24px;
+            color: #0056b3;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .stats-bar {
+            background: #e9ecef;
+            padding: 12px 20px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 14px;
+            color: #495057;
+        }
+        
+        .stat-number {
+            font-weight: bold;
+            color: #0056b3;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0056b3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            margin: 20px;
+            color: #721c24;
+        }
+        
+        .citizens-list {
+            background: white;
+            padding: 0;
+        }
+        
+        .citizen-item {
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+            transition: background 0.2s;
+        }
+        
+        .citizen-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .citizen-item.posthumous {
+            background: #fffbf5;
+            border-left: 4px solid #d4a574;
+            padding-left: 16px;
+        }
+        
+        .citizen-item.posthumous:hover {
+            background: #fff5e6;
+        }
+        
+        .citizen-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .candle {
+            font-size: 24px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        
+        .citizen-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #212529;
+            flex: 1;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            background: #6c757d;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: 10px;
+        }
+        
+        .citizen-info {
+            margin-left: 36px;
+            font-size: 14px;
+        }
+        
+        .info-row {
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .info-value {
+            color: #495057;
+        }
+        
+        .citizen-description {
+            margin-top: 12px;
+            line-height: 1.7;
+            color: #495057;
+            text-align: justify;
+        }
+        
+        .citizen-document {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e9ecef;
+            font-size: 13px;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .age {
+            color: #6c757d;
+            font-size: 13px;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 20px;
+            }
+            
+            .citizen-item {
+                padding: 15px;
+            }
+            
+            .citizen-name {
+                font-size: 16px;
+            }
+            
+            .citizen-info {
+                margin-left: 0;
+            }
+            
+            .citizen-header {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Почесні громадяни міста Славута</h1>
+            <p class="subtitle">Ми пам'ятаємо кожного, хто віддав життя за Україну</p>
+        </header>
+        
+        <div id="statsBar" class="stats-bar" style="display: none;">
+            Всього почесних громадян: <span class="stat-number" id="totalCount">0</span> | 
+            Нагороджені посмертно: <span class="stat-number" id="posthumousCount">0</span>
+        </div>
+        
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <p>Завантаження даних...</p>
+        </div>
+        
+        <div id="errorState" class="error" style="display: none;"></div>
+        
+        <div id="citizensList" class="citizens-list"></div>
+    </div>
+
+    <script>
+        // Форматування дати
+        function formatDate(dateString) {
+            if (!dateString) return '—';
+            try {
+                const date = new Date(dateString);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}.${month}.${year}`;
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        // Обчислення віку
+        function calculateAge(birthDate, description) {
+            if (!birthDate) return '';
+            try {
+                const birth = new Date(birthDate);
+                
+                // Шукаємо дату смерті в описі
+                const deathMatch = description?.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+                let deathDate = new Date();
+                
+                if (deathMatch) {
+                    deathDate = new Date(deathMatch[3], deathMatch[2] - 1, deathMatch[1]);
+                }
+                
+                let age = deathDate.getFullYear() - birth.getFullYear();
+                const monthDiff = deathDate.getMonth() - birth.getMonth();
+                
+                if (monthDiff < 0 || (monthDiff === 0 && deathDate.getDate() < birth.getDate())) {
+                    age--;
+                }
+                
+                return age > 0 && age < 120 ? ` <span class="age">(${age} років)</span>` : '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // Екранування HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Рендеринг елемента списку
+        function renderCitizen(citizen) {
+            const isPosthumous = citizen.status && citizen.status.toLowerCase().includes('посмертно');
+            const age = calculateAge(citizen.dayOfBirthday, citizen.description);
+            
+            return `
+                <div class="citizen-item ${isPosthumous ? 'posthumous' : ''}">
+                    <div class="citizen-header">
+                        ${isPosthumous ? '<div class="candle">🕯️</div>' : ''}
+                        <div class="citizen-name">
+                            ${escapeHtml(citizen.name || 'Без імені')}
+                            ${isPosthumous ? '<span class="status-badge">Посмертно</span>' : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="citizen-info">
+                        <div class="info-row">
+                            <span class="info-label">Дата народження:</span> 
+                            <span class="info-value">${formatDate(citizen.dayOfBirthday)}${age}</span>
+                        </div>
+                        
+                        ${citizen.location ? `
+                        <div class="info-row">
+                            <span class="info-label">Місце народження:</span> 
+                            <span class="info-value">${escapeHtml(citizen.location)}</span>
+                        </div>
+                        ` : ''}
+                        
+                        ${citizen.description ? `
+                        <div class="citizen-description">
+                            ${escapeHtml(citizen.description)}
+                        </div>
+                        ` : ''}
+                        
+                        ${citizen.document ? `
+                        <div class="citizen-document">
+                            ${escapeHtml(citizen.document)}
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Завантаження даних з Netlify Function
+        async function loadCitizens() {
+            const loadingEl = document.getElementById('loadingState');
+            const errorEl = document.getElementById('errorState');
+            const listEl = document.getElementById('citizensList');
+            const statsEl = document.getElementById('statsBar');
+            
+            try {
+                // Викликаємо Netlify Function (API ключ захищено!)
+                const response = await fetch('/.netlify/functions/get-citizens');
+                
+                if (!response.ok) {
+                    throw new Error(`Помилка сервера: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.success || !data.citizens) {
+                    throw new Error('Некоректна відповідь від сервера');
+                }
+                
+                const citizens = data.citizens;
+                
+                if (citizens.length === 0) {
+                    throw new Error('Не знайдено жодного запису');
+                }
+                
+                // Сортування: спочатку посмертно, потім за алфавітом
+                citizens.sort((a, b) => {
+                    const aPosthumous = a.status?.toLowerCase().includes('посмертно') ? 0 : 1;
+                    const bPosthumous = b.status?.toLowerCase().includes('посмертно') ? 0 : 1;
+                    
+                    if (aPosthumous !== bPosthumous) {
+                        return aPosthumous - bPosthumous;
+                    }
+                    
+                    return (a.name || '').localeCompare(b.name || '', 'uk');
+                });
+                
+                // Статистика
+                const posthumousCount = citizens.filter(c => 
+                    c.status?.toLowerCase().includes('посмертно')
+                ).length;
+                
+                document.getElementById('totalCount').textContent = citizens.length;
+                document.getElementById('posthumousCount').textContent = posthumousCount;
+                
+                // Рендеринг списку
+                listEl.innerHTML = citizens.map(renderCitizen).join('');
+                
+                // Показати інтерфейс
+                loadingEl.style.display = 'none';
+                statsEl.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Помилка:', error);
+                loadingEl.style.display = 'none';
+                errorEl.innerHTML = `
+                    <strong>Помилка завантаження даних</strong><br>
+                    ${escapeHtml(error.message)}<br><br>
+                    <small>Переконайтеся, що Netlify Functions правильно налаштовані та Environment Variables додані.</small>
+                `;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // Запуск при завантаженні
+        document.addEventListener('DOMContentLoaded', loadCitizens);
+    </script>
+</body>
+</html>
