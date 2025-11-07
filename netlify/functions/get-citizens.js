@@ -47,41 +47,68 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Запит до NocoDB API
-        const response = await fetch(
-            `${NOCODB_URL}${TABLE_ID}/records`,
-            {
+        // Отримуємо всі записи (з пагінацією)
+        let allRecords = [];
+        let offset = 0;
+        const limit = 100; // Кількість записів за один запит
+        let hasMore = true;
+
+        while (hasMore) {
+            // Запит до NocoDB API з параметрами пагінації
+            const url = `${NOCODB_URL}${TABLE_ID}/records?limit=${limit}&offset=${offset}`;
+            
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'xc-token': API_TOKEN,
                     'Content-Type': 'application/json'
                 }
-            }
-        );
+            });
 
-        // Перевірка відповіді
-        if (!response.ok) {
-            console.error(`NocoDB API error: ${response.status}`);
-            return {
-                statusCode: response.status,
-                headers,
-                body: JSON.stringify({ 
-                    error: 'NocoDB API error',
-                    status: response.status 
-                })
-            };
+            // Перевірка відповіді
+            if (!response.ok) {
+                console.error(`NocoDB API error: ${response.status}`);
+                return {
+                    statusCode: response.status,
+                    headers,
+                    body: JSON.stringify({ 
+                        error: 'NocoDB API error',
+                        status: response.status 
+                    })
+                };
+            }
+
+            // Отримуємо дані
+            const data = await response.json();
+            const records = data.list || data.records || [];
+            
+            // Додаємо отримані записи
+            allRecords = allRecords.concat(records);
+            
+            // Перевіряємо, чи є ще записи
+            if (records.length < limit) {
+                hasMore = false; // Це був останній запит
+            } else {
+                offset += limit; // Переходимо до наступної сторінки
+            }
+
+            // Захист від безкінечного циклу (максимум 10000 записів)
+            if (offset >= 10000) {
+                console.warn('Reached maximum records limit (10000)');
+                hasMore = false;
+            }
         }
 
-        // Отримуємо дані
-        const data = await response.json();
+        console.log(`Successfully fetched ${allRecords.length} records`);
         
-        // Повертаємо дані клієнту
+        // Повертаємо всі дані клієнту
         return {
             statusCode: 200,
             headers,
             body: JSON.stringify({
                 success: true,
-                citizens: data.list || data.records || [],
+                citizens: allRecords,
+                total: allRecords.length,
                 timestamp: new Date().toISOString()
             })
         };
