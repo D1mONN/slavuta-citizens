@@ -1,0 +1,28 @@
+# Netlify Configuration File
+# Документація: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Директорія з публічними файлами
+  publish = "public"
+  
+  # Директорія з функціями
+  functions = "netlify/functions"
+
+# Налаштування для Functions
+[functions]
+  # Регіон розгортання (найближчий до України)
+  node_bundler = "esbuild"
+
+# Налаштування заголовків для безпеки
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Редирект кореня на index.html
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
